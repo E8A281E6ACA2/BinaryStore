@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUserFromCookies } from '@/lib/auth-api';
+import { requireAdminUser } from '@/lib/auth-api';
 import { prisma } from '@/lib/prisma';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getR2Config } from '@/lib/r2-utils';
@@ -11,10 +11,9 @@ export async function DELETE(
 ) {
   try {
     // 验证用户权限
-    const user = await getCurrentUserFromCookies();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdminUser();
+    if ('response' in auth) return auth.response;
+    const { user } = auth;
 
     const releaseId = params.id;
 

@@ -1,33 +1,9 @@
 import { NextResponse } from 'next/server';
 import { S3Client, HeadBucketCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getStorageConfig } from '@/lib/config';
-import { cookies } from 'next/headers';
-import { prisma } from '@/lib/prisma';
+import { requireAdminUser } from '@/lib/auth-api';
 
 const isProd = process.env.NODE_ENV === 'production';
-
-/**
- * 从请求中获取当前用户
- */
-async function getCurrentUser() {
-  try {
-    const cookieStore = cookies();
-    const sessionId = cookieStore.get('sb_session')?.value;
-    if (!sessionId) return null;
-
-    const session = await prisma.session.findUnique({
-      where: { id: sessionId },
-      include: { user: true },
-    });
-    if (!session) return null;
-    if (session.revoked) return null;
-    if (session.expiresAt && session.expiresAt.getTime() < Date.now()) return null;
-    return session.user;
-  } catch (e) {
-    console.error('getCurrentUser error', e);
-    return null;
-  }
-}
 
 /**
  * POST /api/admin/settings/test-r2
@@ -35,10 +11,8 @@ async function getCurrentUser() {
  */
 export async function POST(req: Request) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized', details: 'Only admins can test R2 connection' }, { status: 401 });
-    }
+    const auth = await requireAdminUser();
+    if ('response' in auth) return auth.response;
 
     // 读取 R2 配置
     const config = await getStorageConfig();

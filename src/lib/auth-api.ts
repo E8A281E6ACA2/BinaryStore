@@ -1,4 +1,6 @@
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import type { User } from '@prisma/client';
 import { prisma } from './prisma';
 
 /**
@@ -25,4 +27,19 @@ export async function getCurrentUserFromCookies() {
     console.error('getCurrentUserFromCookies error', e);
     return null;
   }
+}
+
+type AuthResult =
+  | { user: User }
+  | { response: NextResponse };
+
+/**
+ * 要求管理员权限，统一返回格式
+ */
+export async function requireAdminUser(): Promise<AuthResult> {
+  const user = await getCurrentUserFromCookies();
+  if (!user || user.role !== 'ADMIN') {
+    return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+  return { user };
 }

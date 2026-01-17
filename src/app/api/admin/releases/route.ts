@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUserFromCookies } from '@/lib/auth-api';
+import { requireAdminUser } from '@/lib/auth-api';
 import { prisma } from '@/lib/prisma';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { nanoid } from 'nanoid';
@@ -9,10 +9,9 @@ import { safeErrorResponse } from '@/lib/api-error';
 export async function POST(req: NextRequest) {
   try {
     // 验证用户权限
-    const user = await getCurrentUserFromCookies();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdminUser();
+    if ('response' in auth) return auth.response;
+    const { user } = auth;
 
     // 解析表单数据
     const formData = await req.formData();

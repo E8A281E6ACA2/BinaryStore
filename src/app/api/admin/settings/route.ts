@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { encrypt, decrypt } from '@/lib/encryption';
-import { cookies } from 'next/headers';
+import { requireAdminUser } from '@/lib/auth-api';
 
 // 定义需要加密的配置键
 const ENCRYPTED_KEYS = [
@@ -14,38 +14,14 @@ const ENCRYPTED_KEYS = [
 ];
 
 /**
- * 从请求中获取当前用户
- */
-async function getCurrentUser() {
-  try {
-    const cookieStore = cookies();
-    const sessionId = cookieStore.get('sb_session')?.value;
-    if (!sessionId) return null;
-
-    const session = await prisma.session.findUnique({
-      where: { id: sessionId },
-      include: { user: true },
-    });
-    if (!session) return null;
-    if (session.revoked) return null;
-    if (session.expiresAt && session.expiresAt.getTime() < Date.now()) return null;
-    return session.user;
-  } catch (e) {
-    console.error('getCurrentUser error', e);
-    return null;
-  }
-}
-
-/**
  * GET /api/admin/settings
  * 读取所有系统配置（敏感字段脱敏显示）
  */
 export async function GET(req: Request) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdminUser();
+    if ('response' in auth) return auth.response;
+    const { user } = auth;
 
     const configs = await (prisma as any).systemConfig.findMany({
       orderBy: { key: 'asc' },
@@ -73,10 +49,9 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdminUser();
+    if ('response' in auth) return auth.response;
+    const { user } = auth;
 
     const body = await req.json();
     const { configs } = body; // configs: Array<{ key: string, value: string }>
