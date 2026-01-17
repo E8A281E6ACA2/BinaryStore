@@ -7,20 +7,30 @@ export async function GET(req: Request, { params }: { params: { path: string[] }
     const parts = params.path || [];
     if (!parts.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const r2Key = parts.map((p) => decodeURIComponent(p)).join('/');
+
+    if (!/^[a-zA-Z0-9_.\\-/]+$/.test(r2Key)) {
+      return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+    }
+
     const uploadsRoot = path.join(process.cwd(), '.uploads');
-    const fullPath = path.join(uploadsRoot, ...r2Key.split('/'));
+    const fullPath = path.resolve(uploadsRoot, r2Key);
+    const relative = path.relative(uploadsRoot, fullPath);
+
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+    }
 
     if (!fs.existsSync(fullPath)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const stat = await fs.promises.stat(fullPath);
-  const buffer = await fs.promises.readFile(fullPath);
+    const stat = await fs.promises.stat(fullPath);
+    const buffer = await fs.promises.readFile(fullPath);
 
-  const headers = new Headers();
-  headers.set('Content-Length', String(stat.size));
-  headers.set('Content-Disposition', `attachment; filename="${path.basename(fullPath)}"`);
-  headers.set('Content-Type', 'application/octet-stream');
+    const headers = new Headers();
+    headers.set('Content-Length', String(stat.size));
+    headers.set('Content-Disposition', `attachment; filename="${path.basename(fullPath)}"`);
+    headers.set('Content-Type', 'application/octet-stream');
 
-  return new NextResponse(buffer, { headers });
+    return new NextResponse(buffer, { headers });
   } catch (err) {
     console.error('Serve upload error', err);
     return NextResponse.json({ error: 'Internal' }, { status: 500 });
