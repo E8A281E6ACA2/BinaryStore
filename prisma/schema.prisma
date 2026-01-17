@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  name        String
+  tagline     String?
+  description String?
+  icon        String?
+  banner      String?
+  features    String[]   @default([])
+  website     String?
+  repository  String?
+  downloads   Download[]
+  releases    Release[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @default(now()) @updatedAt
+
+  @@index([slug])
+  @@map("products")
+}
+
+model Download {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  version      String
+  platform     String
+  arch         String
+  releaseId    String?
+  release      Release? @relation(fields: [releaseId], references: [id], onDelete: SetNull)
+  downloadedAt DateTime @default(now())
+
+  @@index([productId, downloadedAt])
+  @@index([downloadedAt])
+  @@index([releaseId])
+  @@map("downloads")
+}
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  name        String?
+  password    String
+  role        String    @default("USER")
+  createdAt   DateTime  @default(now())
+  lastLoginAt DateTime?
+
+  uploads        Release[]
+  logs           AdminLog[]
+  passwordResets PasswordReset[]
+  sessions       Session[]
+  systemConfigs  SystemConfig[]
+
+  @@map("users")
+}
+
+model Release {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  version      String
+  r2Key        String   @unique
+  url          String
+  size         Int?
+  checksum     String?
+  uploadedBy   String?
+  uploader     User?    @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+  status       String   @default("pending")
+  releaseNotes String?
+  uploadedAt   DateTime @default(now())
+
+  downloads Download[]
+
+  @@index([productId])
+  @@map("releases")
+}
+
+model AdminLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action       String
+  resourceType String?
+  resourceId   String?
+  details      Json?
+  ip           String?
+  createdAt    DateTime @default(now())
+
+  @@map("admin_logs")
+}
+
+model Session {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  lastAccessAt DateTime?
+  userAgent    String?
+  ip           String?
+  revoked      Boolean   @default(false)
+  meta         Json?
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model PasswordReset {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  used       Boolean  @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_resets")
+}
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  encrypted Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+  user      User?    @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([key])
+  @@map("system_configs")
+}
