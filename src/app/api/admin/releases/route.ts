@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { nanoid } from 'nanoid';
 import { getR2Config, generateR2Key, deleteOldReleases } from '@/lib/r2-utils';
+import { safeErrorResponse } from '@/lib/api-error';
 
 export async function POST(req: NextRequest) {
   try {
@@ -130,9 +131,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('Upload error:', error);
-    return NextResponse.json(
-      { error: error.message || '上传失败' },
-      { status: 500 }
-    );
+    return safeErrorResponse('上传失败，请稍后重试', 500, error);
   }
 }

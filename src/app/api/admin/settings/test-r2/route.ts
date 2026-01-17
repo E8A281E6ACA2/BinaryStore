@@ -4,6 +4,8 @@ import { getStorageConfig } from '@/lib/config';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 /**
  * 从请求中获取当前用户
  */
@@ -107,9 +109,13 @@ export async function POST(req: Request) {
     } catch (err: any) {
       return NextResponse.json({
         ok: false,
-        error: 'Bucket 访问失败',
-        details: err.message || '无法访问指定的 Bucket，请检查配置是否正确',
-        errorCode: err.Code || err.$metadata?.httpStatusCode,
+        error: 'Bucket 访问失败，请检查配置',
+        ...(isProd
+          ? {}
+          : {
+              details: err?.message || '无法访问指定的 Bucket，请检查配置是否正确',
+              errorCode: err?.Code || err?.$metadata?.httpStatusCode,
+            }),
       }, { status: 400 });
     }
 
@@ -137,12 +143,16 @@ export async function POST(req: Request) {
         ok: true, // Bucket 本身可访问
         warning: 'Bucket 可访问，但列表权限受限',
         message: 'R2 连接基本正常（建议检查权限配置）',
-        details: {
-          bucket: config.bucket,
-          endpoint: config.endpoint,
-          region: config.region,
-          listError: err.message,
-        },
+        ...(isProd
+          ? {}
+          : {
+              details: {
+                bucket: config.bucket,
+                endpoint: config.endpoint,
+                region: config.region,
+                listError: err?.message,
+              },
+            }),
       });
     }
   } catch (err: any) {
@@ -150,7 +160,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: false,
       error: '连接测试失败',
-      details: err.message || '未知错误',
+      ...(isProd ? {} : { details: err?.message || '未知错误' }),
     }, { status: 500 });
   }
 }

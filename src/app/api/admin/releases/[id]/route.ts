@@ -3,6 +3,7 @@ import { getCurrentUserFromCookies } from '@/lib/auth-api';
 import { prisma } from '@/lib/prisma';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getR2Config } from '@/lib/r2-utils';
+import { safeErrorResponse } from '@/lib/api-error';
 
 export async function DELETE(
   req: NextRequest,
@@ -98,9 +99,6 @@ export async function DELETE(
     });
   } catch (error: any) {
     console.error('Delete release error:', error);
-    return NextResponse.json(
-      { error: error.message || '删除失败' },
-      { status: 500 }
-    );
+    return safeErrorResponse('删除失败，请稍后重试', 500, error);
   }
 }

@@ -42,7 +42,9 @@ export async function GET() {
       status: 'error',
       timestamp: new Date().toISOString(),
       message: '健康检查失败',
-      error: error instanceof Error ? error.message : '未知错误',
+      ...(process.env.NODE_ENV === 'production'
+        ? {}
+        : { details: error instanceof Error ? error.message : String(error) }),
     }, {
       status: 500,
     });

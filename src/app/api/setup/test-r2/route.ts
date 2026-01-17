@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { S3Client, ListBucketsCommand } from '@aws-sdk/client-s3';
+import { safeErrorResponse } from '@/lib/api-error';
 
 export async function POST(req: Request) {
   try {
@@ -26,9 +27,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('R2 connection test failed:', error);
-    return NextResponse.json(
-      { error: error.message || '连接失败' },
-      { status: 500 }
-    );
+    return safeErrorResponse('连接失败，请检查配置', 500, error);
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { safeErrorResponse } from '@/lib/api-error';
 
 const S3_BUCKET = process.env.R2_BUCKET;
 const S3_ENDPOINT = process.env.R2_ENDPOINT;
@@ -96,9 +97,6 @@ export async function GET(
     }
   } catch (error) {
     console.error('Download error:', error);
-    return NextResponse.json(
-      { error: '下载失败: ' + (error instanceof Error ? error.message : String(error)) },
-      { status: 500 }
-    );
+    return safeErrorResponse('下载失败，请稍后重试', 500, error);
   }
 }

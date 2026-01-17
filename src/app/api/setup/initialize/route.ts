@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { safeErrorResponse } from '@/lib/api-error';
 
 const execAsync = promisify(exec);
 
@@ -28,9 +29,7 @@ export async function POST(req: Request) {
       }
     } catch (migrateError: any) {
       console.error('数据库迁移失败:', migrateError);
-      return NextResponse.json({ 
-        error: `数据库初始化失败: ${migrateError.message}` 
-      }, { status: 500 });
+      return safeErrorResponse('数据库初始化失败', 500, migrateError);
     }
 
     // 2. 检查系统是否已初始化
@@ -109,9 +108,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('System initialization failed:', error);
-    return NextResponse.json(
-      { error: error.message || '初始化失败' },
-      { status: 500 }
-    );
+    return safeErrorResponse('初始化失败，请稍后重试', 500, error);
   }
 }
