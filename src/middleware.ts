@@ -5,21 +5,50 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 排除静态资源和 API 路由
-  if (
+  const isPublicAsset =
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
-    pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp)$/)
-  ) {
+    pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp)$/);
+
+  if (isPublicAsset) {
     return NextResponse.next();
   }
 
-  // 如果已经在 setup 页面，直接通过
-  if (pathname.startsWith('/setup')) {
-    return NextResponse.next();
+  let initialized = false;
+
+  try {
+    const statusResponse = await fetch(
+      new URL('/api/setup/status', request.nextUrl.origin),
+      {
+        headers: { 'x-internal-check': 'setup-status' },
+        next: { revalidate: 5 },
+      }
+    );
+
+    if (statusResponse.ok) {
+      const data = await statusResponse.json();
+      initialized = Boolean(data?.initialized);
+    } else {
+      console.error('Failed to fetch setup status', statusResponse.status);
+    }
+  } catch (error) {
+    console.error('Setup status fetch error', error);
   }
 
-  // 简化检查：暂时移除数据库查询，避免 Edge Runtime 问题
-  // 系统初始化检查将在相关页面中通过 API 调用进行
+  if (!initialized && !pathname.startsWith('/setup')) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/setup';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
+  if (initialized && pathname.startsWith('/setup')) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/admin/login';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
   return NextResponse.next();
 }
 
