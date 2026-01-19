@@ -2,7 +2,17 @@ import crypto from 'crypto';
 import { prisma } from './prisma';
 
 const TOKEN_COOKIE_NAME = 'sb_session';
-const TOKEN_SECRET = process.env.ADMIN_JWT_SECRET || 'change-me-to-secure-secret';
+const TOKEN_SECRET = resolveTokenSecret();
+
+function resolveTokenSecret() {
+  const secret = process.env.ADMIN_JWT_SECRET?.trim();
+  if (secret && secret.length >= 32) return secret;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('ADMIN_JWT_SECRET must be set to a strong secret (>=32 chars) in production.');
+  }
+  // Generate a per-process secret in non-production to avoid weak defaults.
+  return crypto.randomBytes(64).toString('hex');
+}
 
 function base64url(input: Buffer | string) {
   return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
