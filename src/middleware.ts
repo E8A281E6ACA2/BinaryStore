@@ -24,13 +24,20 @@ function withSecurityHeaders(response: NextResponse) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 排除静态资源和 API 路由
+  // 避免内部健康检查请求触发递归
+  if (request.headers.get('x-internal-check') === 'setup-status') {
+    return NextResponse.next();
+  }
+
+  const isApiRoute = pathname.startsWith('/api');
   const isPublicAsset =
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp)$/);
+    pathname.startsWith('/_next') || pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp)$/);
 
   if (isPublicAsset) {
+    return withSecurityHeaders(NextResponse.next());
+  }
+
+  if (isApiRoute) {
     return withSecurityHeaders(NextResponse.next());
   }
 
@@ -76,11 +83,10 @@ export const config = {
   matcher: [
     /*
      * 匹配所有路径，除了：
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
