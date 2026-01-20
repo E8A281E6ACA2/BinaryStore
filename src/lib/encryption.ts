@@ -8,7 +8,17 @@ const KEY_LENGTH = 32;
 const ITERATIONS = 10000;
 
 // 从环境变量获取主密钥，如果未设置则使用默认值（生产环境必须设置）
-const MASTER_KEY = process.env.CONFIG_ENCRYPTION_KEY || 'change-me-in-production-min-32-chars!!';
+const MASTER_KEY = resolveMasterKey();
+
+function resolveMasterKey() {
+  const key = process.env.CONFIG_ENCRYPTION_KEY?.trim();
+  if (key && key.length >= 32) return key;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('CONFIG_ENCRYPTION_KEY must be set to a strong value (>=32 chars) in production.');
+  }
+  // 非生产环境生成一次性密钥，避免弱默认值；重启会导致先前加密内容失效
+  return crypto.randomBytes(KEY_LENGTH).toString('hex');
+}
 
 /**
  * 使用 PBKDF2 从主密钥派生加密密钥
